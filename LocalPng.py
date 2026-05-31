@@ -4,18 +4,17 @@ import torch
 from min_dalle import MinDalle
 
 # OTIMIZAÇÃO 1: Limita os núcleos da CPU para evitar que o celular congele ou superaqueça.
-# Se o Termux ainda fechar sozinho, tente diminuir esse número para 2.
 torch.set_num_threads(4)
 
 def main():
     print("=" * 50)
-print(" _                    _ ____              "
-print("| |    ___   ___ __ _| |  _ \ _ __   __ _ "
-print("| |   / _ \ / __/ _` | | |_) | '_ \ / _` |"
-print("| |__| (_) | (_| (_| | |  __/| | | | (_| |"
-print("|_____\___/ \___\__,_|_|_|   |_| |_|\__, |"
-print("                                    |___/ "
-                                           
+    # Usando aspas triplas para imprimir o bloco ASCII inteiro perfeitamente
+    print(""" _                    _ ____              
+| |    ___   ___ __ _| |  _ \\ _ __   __ _ 
+| |   / _ \\ / __/ _` | | |_) | '_ \\ / _` |
+| |__| (_) | (_| (_| | |  __/| | | | (_| |
+|_____\\___/ \\___\\__,_|_|_|   |_| |_|\\__, |
+                                    |___/ """)
     print("=" * 50)
 
     prompt = input("\nDigite o prompt (Em inglês funciona melhor. Ex: 'cursed shrek'): ").strip()
@@ -28,7 +27,7 @@ print("                                    |___/ "
     print("DICA: Feche todos os outros apps em segundo plano para liberar RAM!")
     
     try:
-        # OTIMIZAÇÃO 2: is_reusable=False ajuda a economizar memória se você só vai gerar 1 imagem por vez
+        # OTIMIZAÇÃO 2: is_reusable=False ajuda a economizar memória
         model = MinDalle(
             is_mega=False,
             models_root='./models',
@@ -38,7 +37,7 @@ print("                                    |___/ "
         )
 
         print("\n[2/2] Processando os pixels distorcidos...")
-        print("Nota: O Termux vai congelar por alguns minutos. Deixe o celular quietinho processando...")
+        print("Nota: O Termux vai congelar por alguns minutos. Deixe o celular quietinho...")
 
         # Gerando a imagem
         image = model.generate_image(
@@ -47,8 +46,13 @@ print("                                    |___/ "
             grid_size=1,
         )
 
-        # Salvando o resultado
-        nome_arquivo = "resultado_distorcido.png"
+        # OTIMIZAÇÃO DE NOME: Transforma o prompt em um nome de arquivo válido
+        nome_limpo = "".join(c for c in prompt.replace(" ", "_") if c.isalnum() or c == '_').lower()
+        
+        # Garante que o nome não fique vazio e limita o tamanho
+        nome_limpo = nome_limpo[:50] if nome_limpo else "resultado"
+        nome_arquivo = f"{nome_limpo}.png"
+        
         image.save(nome_arquivo)
 
         print(f"\n🎉 Sucesso! Imagem salva como: {os.path.abspath(nome_arquivo)}")
@@ -58,7 +62,7 @@ print("                                    |___/ "
     except Exception as e:
         print(f"\n❌ ERRO INESPERADO: {e}")
     finally:
-        # OTIMIZAÇÃO 3: Força a limpeza da RAM antes do script fechar completamente
+        # OTIMIZAÇÃO 3: Força a limpeza da RAM antes do script fechar
         if 'model' in locals():
             del model
         gc.collect()
@@ -67,4 +71,4 @@ print("                                    |___/ "
 
 if __name__ == "__main__":
     main()
-  
+        
