@@ -5,6 +5,7 @@ import argparse
 from datetime import datetime
 import torch
 from min_dalle import MinDalle
+import multiprocessing  # <--- Adicionado para isolamento de memória
 
 # ==========================================
 # CONFIGURAÇÕES DE CORES PARA O TERMINAL
@@ -17,9 +18,6 @@ class Colors:
     BOLD = '\033[1m'
     RESET = '\033[0m'
 
-# ==========================================
-# OTIMIZAÇÕES PARA MOBILE (TERMUX)
-# ==========================================
 # Limita as threads para evitar sobrecarga e superaquecimento da CPU
 torch.set_num_threads(4)
 
@@ -57,7 +55,6 @@ def generate(prompt, seed, out_dir):
     
     model = None
     try:
-        # is_reusable=False economiza memória logo após o uso
         model = MinDalle(
             is_mega=False,
             models_root='./models',
@@ -95,13 +92,18 @@ def generate(prompt, seed, out_dir):
     except Exception as e:
         print(f"\n{Colors.RED}{Colors.BOLD}❌ ERRO INESPERADO:{Colors.RESET} {e}")
     finally:
-        print(f"\n{Colors.CYAN}[INFO] Limpando memória...{Colors.RESET}")
+        print(f"\n{Colors.CYAN}[INFO] Finalizando subset...{Colors.RESET}")
         if model is not None:
             del model
         gc.collect()
 
 def main():
-    # Configuração de argumentos para uso avançado via linha de comando
+    # Configura o método 'spawn' para o PyTorch não travar no Termux ao criar subprocessos
+    try:
+        multiprocessing.set_start_method('spawn', force=True)
+    except RuntimeError:
+        pass
+
     parser = argparse.ArgumentParser(description="Gere imagens com MinDalle pelo Termux.")
     parser.add_argument("-p", "--prompt", type=str, help="O prompt da imagem (em inglês).")
     parser.add_argument("-s", "--seed", type=int, default=-1, help="Seed para geração (padrão: -1 para aleatório).")
@@ -114,7 +116,12 @@ def main():
         print_header()
         print(f"{Colors.CYAN}Prompt:{Colors.RESET} {args.prompt}")
         print(f"{Colors.CYAN}Seed:{Colors.RESET} {args.seed}")
-        generate(args.prompt, args.seed, out_dir)
+        
+        # Executa em processo isolado
+        p = multiprocessing.Process(target=generate, args=(args.prompt, args.seed, out_dir))
+        p.start()
+        p.join()
+        
         print("=" * 50)
         return
 
@@ -135,7 +142,10 @@ def main():
         seed_input = input(f"Digite a {Colors.BOLD}seed{Colors.RESET} (Deixe em branco para aleatório): ").strip()
         seed = int(seed_input) if seed_input.isdigit() else -1
 
-        generate(prompt, seed, out_dir)
+        # Cria, roda e fecha o processo de geração para limpar o cache de RAM completamente
+        processo_geracao = multiprocessing.Process(target=generate, args=(prompt, seed, out_dir))
+        processo_geracao.start()
+        processo_geracao.join() # Aguarda a geração terminar antes de liberar o menu de novo
         
         input(f"\n{Colors.BOLD}Pressione [ENTER] para gerar outra imagem...{Colors.RESET}")
 
